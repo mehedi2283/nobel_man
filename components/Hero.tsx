@@ -58,7 +58,7 @@ const Hero: React.FC<HeroProps> = ({ startAnimation = true }) => {
             className="flex gap-12 lg:gap-16 mb-12 lg:mb-16"
           >
             <div className="flex flex-col">
-              <span className="text-4xl lg:text-5xl font-semibold text-gray-900">+2000</span>
+              <span className="text-4xl lg:text-5xl font-semibold text-gray-900">+20</span>
               <span className="text-gray-500 text-sm mt-2 font-medium">Project Completed</span>
             </div>
             <div className="flex flex-col">

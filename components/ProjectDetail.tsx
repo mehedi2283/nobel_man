@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Project } from '../types';
 import Footer from './Footer';
+import Contact from './Contact';
 
 interface ProjectDetailProps {
   project: Project;
@@ -108,6 +109,10 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onBack }) => {
         )}
 
       </div>
+      
+      {/* Contact Section - Required for Footer's 'Get In Touch' scroll target */}
+      <Contact />
+      
       <Footer />
     </motion.div>
   );
