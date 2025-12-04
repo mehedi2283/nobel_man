@@ -13,72 +13,72 @@ export const projectsData: Project[] = [
     id: 'flownest',
     title: 'FlowNest Dashboard',
     category: 'UI/UX Design',
-    image: 'images\work_1.png',
+    image: 'images/work_1.png',
     description: 'A comprehensive analytics dashboard designed for SaaS businesses to track KPIs, revenue, and user growth in real-time. The goal was to simplify complex data visualization into an intuitive, actionable interface.',
     role: 'Lead Product Designer',
     year: '2023',
     client: 'FlowNest Inc.',
     gallery: [
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f092686754bd01.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f092686754bd01.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png'
+        'images/work_1.png',
+        'images/work_2.png',
+        'images/work_3.png',
+        'images/work_4.png',
+        'images/work_1.png',
+        'images/work_2.png'
     ]
   },
   {
     id: 'fit-track',
     title: 'FitPulse Mobile App',
     category: 'Mobile Application',
-    image: 'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png',
+    image: 'images/work_2.png',
     description: 'A fitness tracking application focused on holistic health. Features include workout planning, meal tracking, and progress visualization. The dark mode UI was chosen to reduce eye strain during early morning or late night workouts.',
     role: 'UI Designer',
     year: '2024',
     client: 'FitPulse',
     gallery: [
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f092686754bd01.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png'
+        'images/work_2.png',
+        'images/work_3.png',
+        'images/work_4.png',
+        'images/work_1.png',
+        'images/work_2.png',
+        'images/work_3.png'
     ]
   },
   {
     id: 'smart-home',
     title: 'Lumina Smart Home',
     category: 'IoT Interface',
-    image: 'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png',
+    image: 'images/work_3.png',
     description: 'Control your entire home from a single app. This project involved creating a design system for IoT device controls, ensuring consistency across lighting, temperature, and security modules.',
     role: 'UX Researcher & Designer',
     year: '2022',
     client: 'Lumina Systems',
     gallery: [
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f092686754bd01.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png'
+        'images/work_3.png',
+        'images/work_4.png',
+        'images/work_1.png',
+        'images/work_2.png',
+        'images/work_3.png',
+        'images/work_4.png'
     ]
   },
   {
     id: 'invest-pro',
     title: 'InvestPro Landing',
     category: 'Web Design',
-    image: 'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png',
+    image: 'images/work_4.png',
     description: 'High-conversion landing page for a fintech startup. The design focuses on trust, clarity, and directing user attention to the primary call-to-action through strategic layout and typography.',
     role: 'Web Designer',
     year: '2023',
     client: 'InvestPro',
     gallery: [
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f092686754bd01.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f09222c954bd00.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d9542556457.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9d041d55645c.png',
-        'https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a12e0f092686754bd01.png'
+        'images/work_4.png',
+        'images/work_1.png',
+        'images/work_2.png',
+        'images/work_3.png',
+        'images/work_4.png',
+        'images/work_1.png'
     ]
   }
 ];
@@ -211,7 +211,7 @@ const ProjectCard: React.FC<{ project: Project; index: number; onClick: () => vo
         </motion.div>
 
         {/* Hover Button - Visible by default on mobile (opacity-100), Hidden on desktop (md:opacity-0) until hover (md:group-hover:opacity-100) */}
-        <div className="absolute inset-0 flex items-center justify-center z-30 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center z-30 opacity-50 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
           <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center transform scale-90 md:scale-75 md:group-hover:scale-100 transition-transform duration-300 shadow-xl">
             <ArrowUpRight size={32} className="text-black" />
           </div>

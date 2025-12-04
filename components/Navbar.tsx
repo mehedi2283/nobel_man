@@ -61,7 +61,7 @@ const Navbar: React.FC = () => {
               onClick={(e) => handleScrollToSection(e, 'home')}
           >
               <img 
-                src="https://storage.googleapis.com/msgsndr/xnK9XgHdPIFUajSVVFfV/media/69300a120b0f9df77955645b.png" 
+                src="images/logo_n.png" 
                 alt="Nobel Logo" 
                 className="h-full w-auto object-contain"
               />
