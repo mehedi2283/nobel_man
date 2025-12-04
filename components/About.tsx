@@ -91,7 +91,7 @@ const About: React.FC = () => {
                 {/* Vertical Portrait */}
                 <div className="mt-auto w-full h-[300px] relative">
                      <img 
-                        src="images\About_img1_Color.png" 
+                        src="images\about_img1_Color.png" 
                         alt="Nobel Portrait" 
                         className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 object-top"
                     />
@@ -111,7 +111,7 @@ const About: React.FC = () => {
             {/* Landscape Image */}
             <div className="w-full h-64 overflow-hidden">
                 <img 
-                    src="images\About_img2_Color.png" 
+                    src="images\about_img2_Color.png" 
                     alt="Nobel Working" 
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
                 />
