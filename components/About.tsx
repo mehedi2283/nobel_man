@@ -109,7 +109,7 @@ const About: React.FC = () => {
             className="lg:col-span-4 flex flex-col gap-8 group"
           >
             {/* Landscape Image */}
-            <div className="w-full h-64 overflow-hidden">
+            <div className="w-full h-64 overflow-hidden hidden md:block">
                 <img 
                     src="/images/about_img2_color.png" 
                     alt="Nobel Working" 
