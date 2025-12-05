@@ -227,7 +227,7 @@ const ProjectCard: React.FC<{ project: Project; index: number; onClick: () => vo
       {/* Content */}
       <div className="flex justify-between items-start px-1">
         <div>
-           <h3 className="text-2xl font-medium text-gray-900 mb-2 group-hover:underline decoration-1 underline-offset-4">{project.title}</h3>
+           <h3 className="text-2xl font-medium text-gray-900 mb-2">{project.title}</h3>
            <p className="text-gray-500">{project.category}</p>
         </div>
       </div>
