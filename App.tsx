@@ -25,6 +25,7 @@ type ViewState = 'home' | 'admin-login' | 'admin-dashboard';
 function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [scrollToSection, setScrollToSection] = useState<string | null>(null);
   
   // App State
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
@@ -69,9 +70,28 @@ function App() {
     fetchData();
   }, []);
 
-  // Scroll to top when switching views or projects
+  // Effect 1: Handle specific section scrolling (like "View All Projects")
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (scrollToSection) {
+      // Increased timeout to 300ms to ensure DOM is fully rendered before scrolling
+      const timeoutId = setTimeout(() => {
+        const element = document.getElementById(scrollToSection);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        setScrollToSection(null);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [scrollToSection]);
+
+  // Effect 2: Handle default scroll to top when switching views/projects
+  // Only runs when selectedProject or view changes.
+  // We check !scrollToSection to ensure we don't override a specific scroll target.
+  useEffect(() => {
+    if (!scrollToSection) {
+      window.scrollTo(0, 0);
+    }
   }, [selectedProject?.id, view]);
 
   // Handle immediate updates from children (likes, comments) without full re-fetch
@@ -167,6 +187,12 @@ function App() {
     setView('home');
   };
 
+  const handleViewAllProjects = () => {
+    // Order matters: Set target first, then clear project to trigger render
+    setScrollToSection('projects');
+    setSelectedProject(null);
+  };
+
   const renderContent = () => {
     if (view === 'admin-login') {
         return <AdminLogin onLogin={handleAdminLogin} onBack={() => setView('home')} />;
@@ -196,6 +222,7 @@ function App() {
             <ProjectDetail 
                 project={selectedProject} 
                 onBack={() => setSelectedProject(null)} 
+                onViewAll={handleViewAllProjects}
                 onProjectUpdate={handleProjectUpdate}
             />
         );

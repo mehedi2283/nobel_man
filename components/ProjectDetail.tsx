@@ -9,6 +9,7 @@ import { projectService } from '../services/projectService';
 interface ProjectDetailProps {
   project: Project;
   onBack: () => void;
+  onViewAll?: () => void;
   onProjectUpdate: (project: Project) => void;
 }
 
@@ -18,7 +19,7 @@ const wrap = (min: number, max: number, v: number) => {
   return ((((v - min) % rangeSize) + rangeSize) % rangeSize) + min;
 };
 
-const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, onBack, onProjectUpdate }) => {
+const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, onBack, onViewAll, onProjectUpdate }) => {
   const [project, setProject] = useState<Project>(initialProject);
   const [likes, setLikes] = useState(initialProject.likes || 0);
   const [isLiked, setIsLiked] = useState(false);
@@ -63,6 +64,18 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxIndex, project.gallery]);
+
+  // Lock Body Scroll when Lightbox is Open
+  useEffect(() => {
+    if (lightboxIndex !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [lightboxIndex]);
 
   const handleLike = async () => {
     if (isLiked) return;
@@ -459,14 +472,14 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, 
                 )}
 
                 {/* --- COMMENTS SECTION --- */}
-                <div className="border-t border-gray-100 pt-16">
-                    <div className="flex items-center gap-3 mb-12">
+                <div className="border-t border-gray-100 pt-10 md:pt-16">
+                    <div className="flex items-center gap-3 mb-8 md:mb-12">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                         <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">Community Feedback</h2>
                     </div>
                     
-                    {/* Modern Input Form */}
-                    <div className="relative mb-20">
+                    {/* Modern Input Form - Reduced margin on mobile */}
+                    <div className="relative mb-12 md:mb-20">
                         <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-white rounded-3xl transform -rotate-1 scale-[1.02]" />
                         <div className="relative bg-white/50 backdrop-blur-sm border border-gray-100 rounded-2xl p-8 shadow-sm">
                             <form onSubmit={handleCommentSubmit} className="space-y-8">
@@ -609,9 +622,9 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, 
                     )}
                 </div>
 
-                {/* Footer Link */}
-                <div className="py-24 flex justify-center border-t border-gray-100 mt-20">
-                    <button onClick={onBack} className="group flex flex-col items-center gap-4 text-gray-400 hover:text-black transition-colors">
+                {/* Footer Link - Reduced Spacing */}
+                <div className="py-8 md:py-24 flex justify-center border-t border-gray-100 mt-0 md:mt-20">
+                    <button onClick={onViewAll || onBack} className="group flex flex-col items-center gap-4 text-gray-400 hover:text-black transition-colors">
                         <div className="w-16 h-16 rounded-full border border-gray-200 flex items-center justify-center group-hover:bg-black group-hover:text-white group-hover:border-black transition-all">
                             <ArrowUpRight size={24} />
                         </div>
@@ -667,18 +680,30 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, 
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="w-full h-full max-w-7xl max-h-screen p-4 md:p-12 flex items-center justify-center"
-                    onClick={(e) => e.stopPropagation()} // Prevent close when clicking image
+                    drag="x" // Enable drag
+                    dragConstraints={{ left: 0, right: 0 }} // Snap back
+                    dragElastic={1} // Feel elastic
+                    onDragEnd={(e, { offset, velocity }) => {
+                        const swipe = swipePower(offset.x, velocity.x);
+                        if (swipe < -swipeConfidenceThreshold) {
+                            handleNextImageLightbox();
+                        } else if (swipe > swipeConfidenceThreshold) {
+                            handlePrevImageLightbox();
+                        }
+                    }}
+                    className="w-full h-full max-w-7xl max-h-screen p-4 md:p-12 flex items-center justify-center cursor-grab active:cursor-grabbing"
                 >
                     <img 
                         src={project.gallery[lightboxIndex]} 
                         alt="Full Screen" 
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                        draggable={false}
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
+                        onClick={(e) => e.stopPropagation()} 
                     />
                 </motion.div>
                 
                 {/* Mobile Hint */}
-                <div className="absolute bottom-8 left-0 right-0 text-center text-white/30 text-xs md:hidden">
+                <div className="absolute bottom-8 left-0 right-0 text-center text-white/30 text-xs md:hidden pointer-events-none">
                     Tap outside to close • Swipe to navigate
                 </div>
             </motion.div>
