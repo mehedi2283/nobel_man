@@ -500,22 +500,23 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, 
                                         value={newCommentText}
                                         onChange={(e) => setNewCommentText(e.target.value)}
                                         rows={2}
-                                        className="w-full text-lg font-medium border-b border-gray-200 py-2 focus:outline-none focus:border-black transition-colors bg-transparent resize-none placeholder-gray-300 pr-12 min-h-[60px]"
+                                        className="w-full text-lg font-medium border-b border-gray-200 py-2 focus:outline-none focus:border-black transition-colors bg-transparent resize-none placeholder-gray-300 pr-48 min-h-[60px]"
                                         placeholder="What do you think about this project?"
                                     />
                                     
-                                    {/* Animated Submit Button */}
+                                    {/* Animated Submit Button - Pill Shape */}
                                     <button 
                                         type="submit" 
                                         disabled={submitStatus === 'loading' || !newCommentAuthor || !newCommentText}
-                                        className="group absolute right-0 bottom-4 w-12 h-12 bg-black text-white rounded-full overflow-hidden shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all z-10"
+                                        className="group/btn absolute right-0 bottom-2 h-12 px-8 bg-black text-white rounded-full overflow-hidden shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all z-10"
                                     >
                                         {/* Fill Effect */}
-                                        <div className="absolute inset-0 bg-white translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.86,0,0.07,1)]" />
+                                        <div className="absolute inset-0 bg-white translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.86,0,0.07,1)]" />
                                         
-                                        {/* Icon Content */}
-                                        <div className="relative z-10 w-full h-full flex items-center justify-center group-hover:text-black transition-colors duration-300">
-                                            {submitStatus === 'loading' ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                                        {/* Content */}
+                                        <div className="relative z-10 h-full flex items-center gap-3 group-hover/btn:text-black transition-colors duration-300">
+                                            <span className="font-bold text-xs uppercase tracking-widest">Post Comment</span>
+                                            {submitStatus === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                                         </div>
                                     </button>
                                 </div>
