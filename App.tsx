@@ -27,9 +27,20 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   
   // App State
-  const [view, setView] = useState<ViewState>('home');
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Auth state persistence: Check localStorage on initialization
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem('nobel_admin_session') === 'true';
+  });
+
+  const [view, setView] = useState<ViewState>(() => {
+    // If we have a session, default to dashboard
+    if (localStorage.getItem('nobel_admin_session') === 'true') {
+      return 'admin-dashboard';
+    }
+    return 'home';
+  });
   
   // Profile Data
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -134,11 +145,13 @@ function App() {
   };
 
   const handleAdminLogin = () => {
+    localStorage.setItem('nobel_admin_session', 'true');
     setIsAdmin(true);
     setView('admin-dashboard');
   };
 
   const handleAdminLogout = () => {
+    localStorage.removeItem('nobel_admin_session');
     setIsAdmin(false);
     setView('home');
   };
@@ -150,6 +163,7 @@ function App() {
 
     if (view === 'admin-dashboard') {
         if (!isAdmin) {
+             // If manual state manipulation happens or storage cleared
              setView('admin-login');
              return null;
         }
