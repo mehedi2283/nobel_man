@@ -142,6 +142,15 @@ export const projectService = {
     if (!response.ok) throw new Error('Failed to delete logo');
   },
 
+  async deleteClientLogos(ids: string[]): Promise<void> {
+    const response = await fetch(`${LOGO_API_URL}/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    if (!response.ok) throw new Error('Failed to delete logos');
+  },
+
   // --- Profile Methods ---
 
   async getProfile(): Promise<ProfileData | null> {

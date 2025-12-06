@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { LogOut, Plus, Save, Trash2, LayoutGrid, X, Edit2, MessageCircle, Heart, MessageSquare, Briefcase, User, Mail, Link as LinkIcon, Globe, Instagram, Linkedin, AlignLeft, Check, Loader2, AlertCircle, Home, LayoutDashboard, Key, Shield, Calendar, Sparkles, Filter } from 'lucide-react';
+import { motion, AnimatePresence, Reorder, useMotionValue, useSpring } from 'framer-motion';
+import { LogOut, Plus, Save, Trash2, LayoutGrid, X, Edit2, MessageCircle, Heart, MessageSquare, Briefcase, User, Mail, Link as LinkIcon, Globe, Instagram, Linkedin, AlignLeft, Check, Loader2, AlertCircle, Home, LayoutDashboard, Key, Shield, Calendar, Sparkles, Filter, CheckSquare, Square, CornerDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Project, ClientLogo, ProfileData, ContactMessage, Comment, ChatLog } from '../types';
 import { projectService } from '../services/projectService';
 import ConfirmationModal from './ConfirmationModal';
@@ -13,8 +13,33 @@ interface AdminDashboardProps {
   onProjectUpdate: (project: Project) => void;
   onProfileUpdate: (profile: ProfileData) => void;
   onLogout: () => void;
+  onRefreshRequests?: () => void;
   homeLogo?: string;
 }
+
+// --- Animated Counter Component ---
+const AnimatedCounter = ({ value }: { value: number }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const motionValue = useMotionValue(0);
+  const springValue = useSpring(motionValue, { 
+    damping: 30, 
+    stiffness: 100 
+  });
+
+  useEffect(() => {
+    motionValue.set(value);
+  }, [value, motionValue]);
+
+  useEffect(() => {
+    return springValue.on("change", (latest) => {
+      if (ref.current) {
+        ref.current.textContent = Math.round(latest).toLocaleString();
+      }
+    });
+  }, [springValue]);
+
+  return <span ref={ref}>0</span>;
+};
 
 const itemVariants = {
     idle: { 
@@ -53,6 +78,7 @@ const SortableProjectItem = React.memo(({
     onEdit, 
     onDelete, 
     onOpenComments,
+    onDragStart,
     onDragEnd
 }: {
     project: Project;
@@ -60,6 +86,7 @@ const SortableProjectItem = React.memo(({
     onEdit: () => void;
     onDelete: () => void;
     onOpenComments: () => void;
+    onDragStart: () => void;
     onDragEnd: () => void;
 }) => {
     return (
@@ -70,6 +97,7 @@ const SortableProjectItem = React.memo(({
             animate="idle"
             whileDrag="dragging"
             variants={itemVariants}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             layout
             className="p-4 rounded-2xl border border-gray-200 flex flex-col md:flex-row items-center gap-4 group cursor-grab active:cursor-grabbing relative overflow-hidden"
@@ -111,25 +139,22 @@ const SortableProjectItem = React.memo(({
     );
 });
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject, onDeleteProject, onReorderProjects, onProjectUpdate, onProfileUpdate, onLogout, homeLogo }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject, onDeleteProject, onReorderProjects, onProjectUpdate, onProfileUpdate, onLogout, onRefreshRequests, homeLogo }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'list' | 'form' | 'logos' | 'profile' | 'inbox'>('overview');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
   
   // Local state for drag and drop
   const [localProjects, setLocalProjects] = useState(projects);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Sync local projects when parent projects change, BUT ONLY if there's a real difference.
-  // This prevents jitter when optimistic updates from App.tsx come back down while local state is already correct.
+  // Sync local projects when parent projects change, BUT ONLY if there's a real difference AND NOT dragging
   useEffect(() => {
-    // Only update if the order or contents are actually different
-    // We compare stringified versions to catch deep changes (content) or order changes
+    if (isDragging) return;
     const projectsChanged = JSON.stringify(projects) !== JSON.stringify(localProjects);
-    
     if (projectsChanged) {
         setLocalProjects(projects);
     }
-  }, [projects]);
+  }, [projects, isDragging]);
 
   // Comment Management State
   const [showCommentsModal, setShowCommentsModal] = useState(false);
@@ -142,6 +167,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
   const [newLogoUrl, setNewLogoUrl] = useState('');
   const [isAddingLogo, setIsAddingLogo] = useState(false);
   const [logoToDelete, setLogoToDelete] = useState<string | null>(null);
+  const [selectedLogoIds, setSelectedLogoIds] = useState<Set<string>>(new Set());
+  const [isBulkDeletingLogos, setIsBulkDeletingLogos] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Profile Management State
   const [profileData, setProfileData] = useState<ProfileData>({
@@ -180,6 +208,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
   // Inbox UI State
   const [inboxTab, setInboxTab] = useState<'contact' | 'chat'>('contact');
   const [dateFilter, setDateFilter] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  
+  // Inbox Pagination State
+  const [inboxPage, setInboxPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
 
   const [formData, setFormData] = useState<Partial<Project>>({
     title: '',
@@ -193,8 +227,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
   
   const [galleryUrls, setGalleryUrls] = useState<string[]>(['']);
 
+  // Initial Fetch
   useEffect(() => {
-    // Fetch logos when dashboard loads
     const fetchData = async () => {
       const logosData = await projectService.getClientLogos();
       setLogos(logosData);
@@ -210,6 +244,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
     };
     fetchData();
   }, []);
+
+  // Polling for Instant Updates (Messages, Comments via Project Refresh)
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+        try {
+            // 1. Refresh Inbox Data
+            const msgs = await projectService.getMessages();
+            // Simple check to avoid state thrashing if data is identical could be added, but minimal impact here
+            setMessages(msgs);
+
+            const logs = await projectService.getChatLogs();
+            setChatLogs(logs);
+
+            // 2. Request Parent to Refresh Projects (Likes/Comments)
+            if (onRefreshRequests) {
+                onRefreshRequests();
+            }
+        } catch (error) {
+            console.debug("Polling failed", error);
+        }
+    }, 4000); // Check every 4 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [onRefreshRequests]);
+
+  // Reset pagination when tab or filter changes
+  useEffect(() => {
+      setInboxPage(1);
+  }, [inboxTab, dateFilter]);
 
   // --- Statistics Calculations ---
   const stats = useMemo(() => {
@@ -227,46 +290,138 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
     return { totalLikes, totalComments, allComments };
   }, [projects]);
 
-  // --- Inbox Grouping Logic ---
-  const groupedInbox: Record<string, (ContactMessage | ChatLog)[]> = useMemo(() => {
+  // --- Recent Activity Calculation ---
+  const recentActivity = useMemo(() => {
+    const commentItems = stats.allComments.map(c => ({
+        id: c._id || c.id || Math.random().toString(),
+        type: 'comment' as const,
+        author: c.author,
+        text: c.text,
+        date: new Date(c.createdAt),
+        subtext: `Commented on ${c.projectTitle}`
+    }));
 
+    const messageItems = messages.map(m => ({
+        id: m._id || m.id || Math.random().toString(),
+        type: 'message' as const,
+        author: m.name,
+        text: m.message,
+        date: new Date(m.createdAt),
+        subtext: 'Sent a message via Contact Form'
+    }));
+
+    // Combine and sort by date descending
+    return [...commentItems, ...messageItems]
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .slice(0, 5); // Take top 5 recent items
+  }, [stats.allComments, messages]);
+
+  // --- Chat Pairing Logic ---
+  // Transforms raw logs into [User -> AI] conversation pairs
+  const pairedChatLogs = useMemo(() => {
+    // 1. Sort ascending to reconstruct conversation flow properly
+    const sorted = [...chatLogs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    
+    interface ChatPair {
+        id: string;
+        userMsg?: ChatLog;
+        modelMsg?: ChatLog;
+        createdAt: string;
+    }
+
+    const pairs: ChatPair[] = [];
+    let currentPair: { userMsg?: ChatLog, modelMsg?: ChatLog } | null = null;
+
+    sorted.forEach((log) => {
+        if (log.role === 'user') {
+            // If we have a pending incomplete pair, push it as is (unanswered user msg)
+            if (currentPair && currentPair.userMsg && !currentPair.modelMsg) {
+                 pairs.push({ 
+                     id: currentPair.userMsg._id || Date.now().toString() + Math.random(), 
+                     userMsg: currentPair.userMsg, 
+                     createdAt: currentPair.userMsg.createdAt 
+                 });
+            }
+            // Start new pair with this user message
+            currentPair = { userMsg: log };
+        } else if (log.role === 'model') {
+            if (currentPair && currentPair.userMsg && !currentPair.modelMsg) {
+                // Complete the pair
+                currentPair.modelMsg = log;
+                pairs.push({ 
+                    id: currentPair.userMsg._id || Date.now().toString() + Math.random(), 
+                    userMsg: currentPair.userMsg, 
+                    modelMsg: log, 
+                    createdAt: currentPair.userMsg.createdAt 
+                });
+                currentPair = null;
+            } else {
+                // Orphaned model message (rare, but handle it)
+                pairs.push({ 
+                    id: log._id || Date.now().toString() + Math.random(), 
+                    modelMsg: log, 
+                    createdAt: log.createdAt 
+                });
+            }
+        }
+    });
+
+    // Push final pending pair if exists
+    if (currentPair) {
+         pairs.push({ 
+             id: currentPair.userMsg?._id || Date.now().toString(), 
+             userMsg: currentPair.userMsg, 
+             modelMsg: currentPair.modelMsg,
+             createdAt: currentPair.userMsg?.createdAt || new Date().toISOString()
+         });
+    }
+
+    return pairs;
+  }, [chatLogs]);
+
+  // --- Inbox Pagination & Grouping Logic ---
+  // 1. Filter and Sort raw data
+  const processedInboxData = useMemo(() => {
     let data: any[] = [];
     
-    // Select Source
     if (inboxTab === 'contact') {
         data = messages;
     } else {
-        data = chatLogs;
+        data = pairedChatLogs;
     }
 
     // Apply Date Filter
     if (dateFilter) {
-        // Adjust for timezone offset to ensure string matching works for "local" day
-        const filterDateStr = new Date(dateFilter).toDateString();
-        // Since input date is YYYY-MM-DD, parsing it as UTC might be off by a day depending on browser.
-        // Simple string match on YYYY-MM-DD is safer for input type="date"
-        
         data = data.filter(item => {
             const itemDate = new Date(item.createdAt);
-            // Compare YYYY-MM-DD strings
             const itemDateStr = itemDate.toISOString().split('T')[0];
             return itemDateStr === dateFilter;
         });
     }
 
     // Sort by Date (Newest First)
-    data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [messages, pairedChatLogs, inboxTab, dateFilter]);
 
-    // Group by Date string
+  // 2. Paginate Data
+  const totalInboxPages = Math.ceil(processedInboxData.length / ITEMS_PER_PAGE) || 1;
+  
+  const paginatedInboxData = useMemo(() => {
+      const start = (inboxPage - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      return processedInboxData.slice(start, end);
+  }, [processedInboxData, inboxPage]);
+
+  // 3. Group Paginated Data
+  const groupedInbox = useMemo(() => {
     const grouped: Record<string, any[]> = {};
-    data.forEach(item => {
+    paginatedInboxData.forEach(item => {
       const dateKey = new Date(item.createdAt).toDateString();
       if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push(item);
     });
-
     return grouped;
-  }, [messages, chatLogs, inboxTab, dateFilter]);
+  }, [paginatedInboxData]);
 
 
   const resetForm = () => {
@@ -290,7 +445,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
       setActiveTab('form');
   };
 
+  const handleDragStart = () => {
+      setIsDragging(true);
+  };
+
   const handleDragEnd = () => {
+     setIsDragging(false);
      // Propagate reorder to parent
      onReorderProjects(localProjects);
   };
@@ -368,11 +528,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
   // --- Logo Management ---
   const handleAddLogo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLogoName || !newLogoUrl) return;
+    if (!newLogoUrl) return; // Name is optional
 
     setIsAddingLogo(true);
     try {
-      const addedLogo = await projectService.addClientLogo(newLogoName, newLogoUrl);
+      const addedLogo = await projectService.addClientLogo(newLogoName || '', newLogoUrl);
       setLogos([addedLogo, ...logos]);
       setNewLogoName('');
       setNewLogoUrl('');
@@ -392,6 +552,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
     } catch (error) {
       alert("Failed to delete logo.");
     }
+  };
+
+  const toggleLogoSelection = (id: string) => {
+      const newSet = new Set(selectedLogoIds);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedLogoIds(newSet);
+  };
+
+  const toggleAllLogos = () => {
+      if (selectedLogoIds.size === logos.length) {
+          setSelectedLogoIds(new Set());
+      } else {
+          setSelectedLogoIds(new Set(logos.map(l => l._id || l.id || '')));
+      }
+  };
+
+  const confirmBulkDeleteLogos = async () => {
+      setIsBulkDeletingLogos(true);
+      setShowBulkDeleteConfirm(false);
+      try {
+          const idsToDelete = Array.from(selectedLogoIds) as string[];
+          await projectService.deleteClientLogos(idsToDelete);
+          setLogos(prev => prev.filter(l => !selectedLogoIds.has(l._id || l.id || '')));
+          setSelectedLogoIds(new Set());
+      } catch (error) {
+          alert("Failed to delete selected logos.");
+      } finally {
+          setIsBulkDeletingLogos(false);
+      }
   };
 
   // --- Profile Management ---
@@ -442,6 +632,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
       }
   };
 
+  // --- Custom Calendar Logic ---
+  const handlePrevMonth = () => {
+    setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+  };
+  const handleNextMonth = () => {
+    setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+  };
+  const handleDateClick = (day: number) => {
+    const selectedDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
+    // Format YYYY-MM-DD manually to avoid timezone issues
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const d = String(selectedDate.getDate()).padStart(2, '0');
+    setDateFilter(`${year}-${month}-${d}`);
+    setShowDatePicker(false);
+  };
+
+  const renderCalendar = () => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+
+    const days = [];
+    // Empty slots for previous month
+    for (let i = 0; i < firstDay; i++) {
+        days.push(<div key={`empty-${i}`} className="w-8 h-8" />);
+    }
+    // Days
+    for (let i = 1; i <= daysInMonth; i++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        const isSelected = dateFilter === dateStr;
+        const isToday = new Date().toDateString() === new Date(year, month, i).toDateString();
+        
+        days.push(
+            <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); handleDateClick(i); }}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors
+                    ${isSelected ? 'bg-black text-white' : 'hover:bg-gray-100 text-gray-700'}
+                    ${isToday && !isSelected ? 'text-blue-600 font-bold' : ''}
+                `}
+            >
+                {i}
+            </button>
+        );
+    }
+    return days;
+  };
+
   const getTabClass = (tabName: string) => {
     const isActive = activeTab === tabName;
     return `flex items-center gap-3 px-4 py-3 rounded-2xl transition-all border ${
@@ -451,8 +691,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
     }`;
   };
 
+  // Tabs config for Mobile Nav
+  const mobileNavItems = [
+    { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
+    { id: 'inbox', icon: Mail, label: 'Inbox', count: messages.length + chatLogs.length },
+    { id: 'list', icon: LayoutGrid, label: 'Projects', count: projects.length },
+    { id: 'form', icon: Plus, label: 'Add' },
+    { id: 'logos', icon: Briefcase, label: 'Logos' },
+    { id: 'profile', icon: User, label: 'Profile' },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-aeonik">
+      
       {/* Top Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
@@ -474,10 +725,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8 flex-1">
+      <div className="container mx-auto px-6 py-8 flex-1 pb-24 md:pb-8">
         <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Sidebar */}
-            <div className="w-full md:w-64 flex flex-col gap-2 shrink-0">
+            {/* Sidebar - Desktop Only */}
+            <div className="hidden md:flex w-64 flex-col gap-2 shrink-0">
                 <button 
                     onClick={() => { setActiveTab('overview'); resetForm(); }}
                     className={getTabClass('overview')}
@@ -542,80 +793,69 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                                <StatCard 
                                  title="Total Likes" 
-                                 value={stats.totalLikes.toString()} 
+                                 value={stats.totalLikes} 
                                  icon={<Heart size={20} className="text-red-500" />} 
                                />
                                <StatCard 
                                  title="Total Comments" 
-                                 value={stats.totalComments.toString()} 
+                                 value={stats.totalComments} 
                                  icon={<MessageCircle size={20} className="text-blue-500" />} 
                                />
                                <StatCard 
                                  title="Total Messages" 
-                                 value={(messages.length + chatLogs.length).toString()} 
+                                 value={messages.length + chatLogs.length} 
                                  icon={<Mail size={20} className="text-purple-500" />} 
                                />
                                <StatCard 
                                  title="Total Projects" 
-                                 value={projects.length.toString()} 
+                                 value={projects.length} 
                                  icon={<LayoutGrid size={20} className="text-black" />} 
                                />
                            </div>
-
-                           {/* Feed Columns */}
-                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[600px]">
-                               {/* Comments Feed */}
-                               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
-                                   <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                                       <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                                           <MessageSquare size={18} /> Recent Comments
-                                       </h3>
+                           
+                           {/* Recent Activity Feed */}
+                           <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm">
+                               <div className="flex items-center gap-3 mb-8">
+                                   <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white">
+                                       <Sparkles size={20} />
                                    </div>
-                                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                       {stats.allComments.length === 0 ? (
-                                           <div className="text-center text-gray-400 py-12">No comments yet.</div>
-                                       ) : (
-                                           stats.allComments.map((comment, idx) => (
-                                               <div key={`${comment.id}-${idx}`} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                                   <div className="flex justify-between items-start mb-2">
-                                                       <div>
-                                                           <span className="font-bold text-sm text-gray-900">{comment.author}</span>
-                                                           <span className="text-xs text-gray-500 mx-2">•</span>
-                                                           <span className="text-xs text-gray-500 font-medium">on {comment.projectTitle}</span>
-                                                       </div>
-                                                       <span className="text-[10px] text-gray-400 whitespace-nowrap">{new Date(comment.createdAt).toLocaleDateString()}</span>
-                                                   </div>
-                                                   <p className="text-sm text-gray-600 leading-relaxed">{comment.text}</p>
-                                               </div>
-                                           ))
-                                       )}
+                                   <div>
+                                       <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
+                                       <p className="text-sm text-gray-500">Latest comments and incoming messages</p>
                                    </div>
                                </div>
 
-                               {/* Messages Feed */}
-                               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
-                                   <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                                       <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                                           <Mail size={18} /> Recent Messages
-                                       </h3>
-                                   </div>
-                                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                       {messages.length === 0 ? (
-                                           <div className="text-center text-gray-400 py-12">No messages received yet.</div>
-                                       ) : (
-                                           messages.slice(0, 10).map((msg) => (
-                                               <div key={msg._id || msg.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                                   <div className="flex justify-between items-start mb-2">
-                                                       <div>
-                                                           <span className="font-bold text-sm text-gray-900">{msg.name}</span>
-                                                       </div>
-                                                       <span className="text-[10px] text-gray-400 whitespace-nowrap">{new Date(msg.createdAt).toLocaleDateString()}</span>
-                                                   </div>
-                                                   <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">{msg.message}</p>
+                               <div className="space-y-6">
+                                   {recentActivity.length > 0 ? (
+                                       recentActivity.map((item) => (
+                                           <div key={item.id} className="flex gap-4 items-start group">
+                                               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border transition-colors ${
+                                                   item.type === 'comment' 
+                                                   ? 'bg-blue-50 text-blue-600 border-blue-100 group-hover:border-blue-200 group-hover:bg-blue-100' 
+                                                   : 'bg-purple-50 text-purple-600 border-purple-100 group-hover:border-purple-200 group-hover:bg-purple-100'
+                                               }`}>
+                                                   {item.type === 'comment' ? <MessageCircle size={18} /> : <Mail size={18} />}
                                                </div>
-                                           ))
-                                       )}
-                                   </div>
+                                               <div className="flex-1 min-w-0">
+                                                   <div className="flex justify-between items-start mb-1">
+                                                       <h4 className="font-bold text-gray-900 text-sm">{item.author}</h4>
+                                                       <span className="text-xs text-gray-400 font-mono">{item.date.toLocaleDateString()}</span>
+                                                   </div>
+                                                   <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
+                                                       {item.type === 'comment' ? <MessageCircle size={12}/> : <Mail size={12}/>}
+                                                       {item.subtext}
+                                                   </p>
+                                                   <div className="bg-gray-50 p-4 rounded-xl text-sm text-gray-600 group-hover:bg-gray-100 transition-colors leading-relaxed">
+                                                       {item.text}
+                                                   </div>
+                                               </div>
+                                           </div>
+                                       ))
+                                   ) : (
+                                       <div className="text-center py-12 text-gray-400">
+                                           <p>No recent activity found.</p>
+                                       </div>
+                                   )}
                                </div>
                            </div>
                         </motion.div>
@@ -627,72 +867,230 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-4xl mx-auto"
+                            className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-4xl mx-auto flex flex-col min-h-[600px]"
                         >
-                           {/* ... Inbox Content ... */}
-                           {/* (Same as previous content for Inbox) */}
+                           {/* ... Inbox Header ... */}
                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                                     Inbox
                                     <span className="text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                                        {inboxTab === 'contact' ? messages.length : chatLogs.length} interactions
+                                        {processedInboxData.length} items
                                     </span>
                                 </h2>
-                                {/* ... Tab switcher & Filter ... */}
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                    <div className="bg-gray-100 p-1 rounded-lg flex items-center">
-                                        <button onClick={() => setInboxTab('contact')} className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${inboxTab === 'contact' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}>Contact Form</button>
-                                        <button onClick={() => setInboxTab('chat')} className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${inboxTab === 'chat' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}>Chatbot Messages</button>
+                                    {/* Animated Tabs */}
+                                    <div className="bg-gray-100 p-1 rounded-2xl flex items-center relative gap-1">
+                                        <button 
+                                            onClick={() => setInboxTab('contact')} 
+                                            className={`relative flex-1 px-8 py-2 text-sm font-bold transition-colors z-10 rounded-xl whitespace-nowrap min-w-[120px] ${inboxTab === 'contact' ? 'text-black' : 'text-gray-500'}`}
+                                        >
+                                            Contact Form
+                                            {inboxTab === 'contact' && (
+                                                <motion.div 
+                                                    layoutId="inbox-tab" 
+                                                    className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10 border border-black/5" 
+                                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} 
+                                                />
+                                            )}
+                                        </button>
+                                        <button 
+                                            onClick={() => setInboxTab('chat')} 
+                                            className={`relative flex-1 px-8 py-2 text-sm font-bold transition-colors z-10 rounded-xl whitespace-nowrap min-w-[120px] ${inboxTab === 'chat' ? 'text-black' : 'text-gray-500'}`}
+                                        >
+                                            Chatbot
+                                            {inboxTab === 'chat' && (
+                                                <motion.div 
+                                                    layoutId="inbox-tab" 
+                                                    className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10 border border-black/5" 
+                                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} 
+                                                />
+                                            )}
+                                        </button>
                                     </div>
-                                    <div className={`relative group cursor-pointer border rounded-lg px-4 py-2 flex items-center gap-3 transition-all ${dateFilter ? 'bg-black text-white border-black' : 'bg-white border-gray-200 hover:border-gray-400 text-gray-600'}`}>
-                                        <Filter size={14} className={dateFilter ? "text-white" : "text-gray-400 group-hover:text-gray-600"} />
-                                        <span className="text-sm font-medium">{dateFilter ? new Date(dateFilter).toLocaleDateString() : 'Filter by Date'}</span>
-                                        <input ref={dateInputRef} type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10" />
-                                        {dateFilter && (<button onClick={(e) => { e.stopPropagation(); setDateFilter(''); }} className="ml-2 w-5 h-5 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors z-20 relative"><X size={12} /></button>)}
+
+                                    {/* Date Filter & Custom Calendar */}
+                                    <div className="relative">
+                                        <button 
+                                            className={`relative cursor-pointer border rounded-2xl px-5 py-2 flex items-center gap-3 transition-all h-[40px] ${dateFilter ? 'bg-black text-white border-black' : 'bg-white border-gray-200 hover:border-gray-400 text-gray-600'}`}
+                                            onClick={() => setShowDatePicker(!showDatePicker)}
+                                        >
+                                            <Filter size={14} className={dateFilter ? "text-white" : "text-gray-400"} />
+                                            <span className="text-sm font-medium">{dateFilter ? new Date(dateFilter).toLocaleDateString() : 'Filter by Date'}</span>
+                                            {dateFilter && (
+                                                <span 
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        setDateFilter(''); 
+                                                    }} 
+                                                    className="ml-2 w-5 h-5 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                                                >
+                                                    <X size={12} />
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        {/* Custom Calendar Dropdown */}
+                                        <AnimatePresence>
+                                            {showDatePicker && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 w-72"
+                                                >
+                                                    {/* Calendar Header */}
+                                                    <div className="flex items-center justify-between mb-4 px-2">
+                                                        <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-full"><ChevronLeft size={18}/></button>
+                                                        <span className="font-bold text-gray-900">
+                                                            {calendarMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                                                        </span>
+                                                        <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded-full"><ChevronRight size={18}/></button>
+                                                    </div>
+                                                    
+                                                    {/* Weekdays */}
+                                                    <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+                                                        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                                                            <div key={d} className="text-[10px] font-bold text-gray-400 uppercase">{d}</div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Days */}
+                                                    <div className="grid grid-cols-7 gap-1 place-items-center">
+                                                        {renderCalendar()}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
                            </div>
-                           {/* List */}
-                           {Object.keys(groupedInbox).length === 0 ? (
-                                <div className="text-center py-20 text-gray-400 flex flex-col items-center"><Mail size={64} className="mb-4 opacity-10" /><p>No messages found {dateFilter ? 'for this date' : 'in inbox'}.</p></div>
-                            ) : (
-                                <div className="space-y-8">
-                                    {Object.entries(groupedInbox).map(([date, items]) => (
-                                        <div key={date}>
-                                            <div className="flex items-center gap-4 mb-4">
-                                                <div className="h-[1px] bg-gray-200 flex-1"></div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400"><Calendar size={14} /> {date}</div><div className="h-[1px] bg-gray-200 flex-1"></div>
-                                            </div>
-                                            <div className="space-y-4">
-                                                {items.map((item: any, idx: number) => (
-                                                    <div key={`${item._id || item.id}-${idx}`} className={`p-5 rounded-2xl border hover:shadow-md transition-all relative group ${inboxTab === 'contact' ? 'bg-blue-50/30 border-blue-100' : 'bg-white border-gray-200'}`}>
-                                                        {inboxTab === 'contact' ? (
-                                                            <>
-                                                                <div className="flex justify-between items-start mb-3">
-                                                                    <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><Mail size={20} /></div><div><h3 className="font-bold text-gray-900">{item.name}</h3><a href={`mailto:${item.email}`} className="text-xs text-blue-600 hover:underline">{item.email}</a></div></div>
-                                                                    <div className="flex items-center gap-4"><span className="text-xs text-gray-400 font-mono">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span><button onClick={() => setMessageToDelete(item._id || item.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Delete Message"><Trash2 size={16} /></button></div>
-                                                                </div>
-                                                                <div className="pl-13 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.message}</div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="flex items-start gap-4">
-                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${item.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>{item.role === 'user' ? <User size={16} /> : <Sparkles size={16} />}</div>
-                                                                 <div className="flex-1 min-w-0">
-                                                                     <div className="flex justify-between items-center mb-1"><span className={`text-xs font-bold uppercase tracking-wider ${item.role === 'user' ? 'text-gray-500' : 'text-purple-600'}`}>{item.role === 'user' ? 'Visitor Chat' : 'AI Response'}</span><span className="text-xs text-gray-400 font-mono">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
-                                                                     <p className="text-sm text-gray-700 bg-gray-50 inline-block px-4 py-2 rounded-xl rounded-tl-none">{item.text}</p>
-                                                                 </div>
-                                                            </div>
-                                                        )}
+                           
+                           {/* ... List Content (Flexible Area) ... */}
+                           <div className="flex-1">
+                                {Object.keys(groupedInbox).length === 0 ? (
+                                    <div className="text-center py-20 text-gray-400 flex flex-col items-center"><Mail size={64} className="mb-4 opacity-10" /><p>No messages found {dateFilter ? 'for this date' : 'in inbox'}.</p></div>
+                                ) : (
+                                    <AnimatePresence mode="wait">
+                                        <motion.div 
+                                            key={`${inboxTab}-${inboxPage}`}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="space-y-8"
+                                        >
+                                            {Object.entries(groupedInbox).map(([date, items]) => (
+                                                <div key={date}>
+                                                    <div className="flex items-center gap-4 mb-4">
+                                                        <div className="h-[1px] bg-gray-200 flex-1"></div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400"><Calendar size={14} /> {date}</div><div className="h-[1px] bg-gray-200 flex-1"></div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
+                                                    <div className="space-y-4">
+                                                        {(items as any[]).map((item: any, idx: number) => (
+                                                            <div key={`${item.id}-${idx}`}>
+                                                                {item.email ? (
+                                                                    // --- Contact Form Message Render ---
+                                                                    <div className="p-5 rounded-2xl border hover:shadow-md transition-all relative group bg-blue-50/30 border-blue-100">
+                                                                        <div className="flex justify-between items-start mb-3">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><Mail size={20} /></div>
+                                                                                <div><h3 className="font-bold text-gray-900">{item.name}</h3><a href={`mailto:${item.email}`} className="text-xs text-blue-600 hover:underline">{item.email}</a></div>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-4">
+                                                                                <span className="text-xs text-gray-400 font-mono">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(item._id || item.id); }} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all -mr-2" title="Delete Message"><Trash2 size={18} /></button>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="pl-13 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.message}</div>
+                                                                    </div>
+                                                                ) : (
+                                                                    // --- Chat Conversation Pair Render ---
+                                                                    <div className="bg-gray-50 rounded-2xl border border-gray-200 p-5 space-y-4">
+                                                                        {/* Header Info */}
+                                                                        <div className="flex justify-between items-center text-xs text-gray-400 mb-2 px-2">
+                                                                            <span className="uppercase font-bold tracking-wider">Conversation Log</span>
+                                                                            <span className="font-mono">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                        </div>
+
+                                                                        {/* User Message (Right/Top) */}
+                                                                        {item.userMsg && (
+                                                                            <div className="flex justify-end mb-2">
+                                                                                <div className="flex items-end gap-2 max-w-[85%] flex-row-reverse">
+                                                                                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center shrink-0">
+                                                                                        <User size={14} />
+                                                                                    </div>
+                                                                                    <div className="bg-white border border-gray-200 px-4 py-2 rounded-2xl rounded-tr-sm shadow-sm text-sm text-gray-800">
+                                                                                        {item.userMsg.text}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* Connection Line */}
+                                                                        {item.userMsg && item.modelMsg && (
+                                                                            <div className="flex justify-start pl-10 -my-1 opacity-20">
+                                                                                <CornerDownRight size={16} />
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* AI Response (Left/Bottom) */}
+                                                                        {item.modelMsg && (
+                                                                            <div className="flex justify-start">
+                                                                                <div className="flex items-start gap-2 max-w-[85%]">
+                                                                                    <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 mt-1">
+                                                                                        <Sparkles size={14} />
+                                                                                    </div>
+                                                                                    <div className="bg-white border border-purple-100 px-4 py-2 rounded-2xl rounded-tl-sm shadow-sm text-sm text-gray-700">
+                                                                                        {item.modelMsg.text}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </motion.div>
+                                    </AnimatePresence>
+                                )}
+                           </div>
+
+                           {/* --- Pagination Controls --- */}
+                           {totalInboxPages > 1 && (
+                                <div className="mt-8 border-t border-gray-100 pt-6 flex justify-between items-center">
+                                    <span className="text-xs font-medium text-gray-400">
+                                        Showing {((inboxPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(inboxPage * ITEMS_PER_PAGE, processedInboxData.length)} of {processedInboxData.length}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => setInboxPage(p => Math.max(1, p - 1))}
+                                            disabled={inboxPage === 1}
+                                            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 transition-colors"
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        
+                                        <span className="text-sm font-bold text-gray-900 px-2 min-w-[60px] text-center">
+                                            {inboxPage} / {totalInboxPages}
+                                        </span>
+
+                                        <button 
+                                            onClick={() => setInboxPage(p => Math.min(totalInboxPages, p + 1))}
+                                            disabled={inboxPage === totalInboxPages}
+                                            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 transition-colors"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
                                 </div>
-                            )}
+                           )}
                         </motion.div>
                     )}
-
-                    {activeTab === 'list' && (
+                    
+                    {/* ... (Projects List & Form Tabs) ... */}
+                     {activeTab === 'list' && (
                         <motion.div 
                             key="list"
                             initial={{ opacity: 0, x: -20 }}
@@ -714,6 +1112,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                                         onEdit={() => handleEditClick(project)}
                                         onDelete={() => onDeleteProject(project.id)}
                                         onOpenComments={() => handleOpenComments(project)}
+                                        onDragStart={handleDragStart}
                                         onDragEnd={handleDragEnd}
                                     />
                                 ))}
@@ -729,7 +1128,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                             exit={{ opacity: 0, x: -20 }}
                             className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-3xl mx-auto"
                         >
-                           {/* ... Form Content ... */}
                             <div className="flex justify-between items-center mb-8">
                                 <h2 className="text-2xl font-bold text-gray-900">{editingId ? 'Edit Project' : 'Upload Project Details'}</h2>
                                 <button onClick={() => { setActiveTab('list'); resetForm(); }} className="text-gray-500 hover:text-black"><X size={24} /></button>
@@ -783,12 +1181,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                             className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-4xl mx-auto"
                         >
                             <h2 className="text-2xl font-bold text-gray-900 mb-6">Manage Client Logos</h2>
+                            
+                            {/* Add Logo Form */}
                             <div className="bg-gray-50 p-6 rounded-xl mb-8 border border-gray-200">
                                 <h3 className="font-bold text-lg mb-4">Add New Logo</h3>
                                 <form onSubmit={handleAddLogo} className="flex flex-col md:flex-row gap-4 items-end">
                                     <div className="flex-1 w-full space-y-2">
-                                        <label className="text-sm font-bold text-gray-700">Client Name</label>
-                                        <input type="text" value={newLogoName} onChange={(e) => setNewLogoName(e.target.value)} placeholder="e.g. Nike" className="w-full px-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:border-black" required />
+                                        <label className="text-sm font-bold text-gray-700">Client Name <span className="text-gray-400 font-normal">(Optional)</span></label>
+                                        <input type="text" value={newLogoName} onChange={(e) => setNewLogoName(e.target.value)} placeholder="e.g. Nike" className="w-full px-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:border-black" />
                                     </div>
                                     <div className="flex-[2] w-full space-y-2">
                                         <label className="text-sm font-bold text-gray-700">Logo Image URL</label>
@@ -797,14 +1197,97 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                                     <button type="submit" disabled={isAddingLogo} className="px-6 py-3 bg-black text-white font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 h-[50px]">{isAddingLogo ? 'Adding...' : 'Add Logo'}</button>
                                 </form>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                {logos.map((logo) => (
-                                    <div key={logo._id} className="relative group bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-center h-32 hover:shadow-md transition-shadow">
-                                        <img src={logo.url} alt={logo.name} className="max-w-full max-h-full object-contain transition-all" loading="lazy" />
-                                        <button onClick={() => setLogoToDelete(logo._id || null)} className="absolute top-2 right-2 p-2 bg-red-100 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"><Trash2 size={16} /></button>
-                                        <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">{logo.name}</div>
-                                    </div>
-                                ))}
+
+                            {/* Bulk Actions Toolbar */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
+                                <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                                    <span className="text-sm font-bold text-gray-500 whitespace-nowrap">{logos.length} Logos</span>
+                                    
+                                    <button 
+                                        onClick={toggleAllLogos} 
+                                        className="text-sm font-medium text-gray-900 hover:text-black flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+                                    >
+                                        {/* Increase hit area */}
+                                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${selectedLogoIds.size === logos.length && logos.length > 0 ? 'bg-black border-black text-white' : 'border-gray-300 bg-white'}`}>
+                                            {selectedLogoIds.size === logos.length && logos.length > 0 && <Check size={12} strokeWidth={3} />}
+                                        </div>
+                                        Select All
+                                    </button>
+                                </div>
+
+                                {/* Delete Button - Full width on mobile */}
+                                <AnimatePresence>
+                                    {selectedLogoIds.size > 0 && (
+                                        <motion.button 
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            onClick={() => setShowBulkDeleteConfirm(true)} 
+                                            className="w-full sm:w-auto text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-colors shadow-sm"
+                                        >
+                                            <Trash2 size={18} /> 
+                                            Delete Selected ({selectedLogoIds.size})
+                                        </motion.button>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                                {logos.map((logo) => {
+                                    const id = logo._id || logo.id || '';
+                                    const isSelected = selectedLogoIds.has(id);
+                                    return (
+                                        <div 
+                                            key={id} 
+                                            onClick={() => toggleLogoSelection(id)}
+                                            className={`
+                                                relative group border rounded-2xl p-4 flex flex-col items-center justify-center h-40 transition-all cursor-pointer select-none
+                                                ${isSelected 
+                                                    ? 'border-black ring-1 ring-black bg-gray-50/50' 
+                                                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                                                }
+                                            `}
+                                        >
+                                            {/* Selection Checkbox - Top Left */}
+                                            <div className="absolute top-3 left-3 z-10">
+                                                <div className={`
+                                                    w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all
+                                                    ${isSelected ? 'bg-black border-black text-white' : 'bg-white border-gray-200 text-transparent group-hover:border-gray-300'}
+                                                `}>
+                                                    <Check size={14} strokeWidth={3} />
+                                                </div>
+                                            </div>
+
+                                            {/* Individual Delete - Top Right */}
+                                            {/* Always visible on touch (group-hover not reliable), or visible if selected */}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setLogoToDelete(id); }} 
+                                                className={`
+                                                    absolute top-2 right-2 p-2.5 rounded-full transition-all z-20
+                                                    ${isSelected || 'md:opacity-0 md:group-hover:opacity-100'} 
+                                                    ${isSelected ? 'bg-white text-red-500 shadow-sm' : 'bg-red-50 text-red-500'}
+                                                    hover:bg-red-100 hover:scale-110 active:scale-95
+                                                `}
+                                                title="Delete Logo"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+
+                                            <div className="flex-1 w-full flex items-center justify-center p-2">
+                                                 <img src={logo.url} alt={logo.name} className="max-w-full max-h-full object-contain pointer-events-none" loading="lazy" />
+                                            </div>
+                                            
+                                            {logo.name && (
+                                                <div className="w-full text-center">
+                                                    <span className="text-xs font-medium text-gray-500 truncate block px-2 py-1 bg-gray-100/50 rounded-md">
+                                                        {logo.name}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                             {logos.length === 0 && (<p className="text-center text-gray-400 py-8">No logos added yet.</p>)}
                         </motion.div>
@@ -818,8 +1301,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                             exit={{ opacity: 0, x: -20 }}
                             className="max-w-4xl mx-auto space-y-8 pb-12"
                         >
-                            {/* ... Profile Form Content (same as before) ... */}
-                            <div className="flex justify-between items-center mb-2 sticky top-20 z-20 bg-gray-50/80 backdrop-blur-sm py-4">
+                            {/* ... Profile Form Content ... */}
+                             <div className="flex justify-between items-center mb-2 sticky top-20 z-20 bg-gray-50/80 backdrop-blur-sm py-4">
                                 <h2 className="text-2xl font-bold text-gray-900">Edit Profile & Content</h2>
                                 <motion.button onClick={handleSaveProfile} disabled={saveProfileStatus !== 'idle'} animate={saveProfileStatus} className={`relative px-6 py-3 rounded-xl font-bold text-white shadow-lg flex items-center gap-2 overflow-hidden transition-colors ${saveProfileStatus === 'success' ? 'bg-green-500 shadow-green-500/30' : saveProfileStatus === 'error' ? 'bg-red-500 shadow-red-500/30' : 'bg-black shadow-black/20 hover:bg-gray-800'}`}>
                                     <AnimatePresence mode="popLayout" initial={false}>
@@ -908,6 +1391,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
             </div>
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 px-4 pb-5 pt-2">
+          <div className="flex justify-between items-center h-14">
+              {mobileNavItems.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                      <button
+                          key={item.id}
+                          onClick={() => { setActiveTab(item.id as any); resetForm(); }}
+                          className="relative flex-1 flex flex-col items-center justify-center h-full gap-1 group"
+                      >
+                          {isActive && (
+                              <motion.div
+                                  layoutId="mobileTabBg"
+                                  className="absolute inset-0 bg-gray-100 rounded-xl"
+                                  initial={false}
+                                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                              />
+                          )}
+                          <div className={`relative p-2 rounded-xl transition-colors z-10 ${isActive ? 'text-black' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                              <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                              {item.count ? (
+                                  <span className="absolute top-0 right-1/4 translate-x-1/2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white px-1 shadow-sm">
+                                      {item.count > 99 ? '99+' : item.count}
+                                  </span>
+                              ) : null}
+                          </div>
+                      </button>
+                  )
+              })}
+          </div>
+      </div>
+
       {/* ... Modals (ConfirmationModal etc) ... */}
        <AnimatePresence>
           {showCommentsModal && selectedProjectForComments && (
@@ -922,14 +1439,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                               <div className="text-center py-12 text-gray-400"><MessageCircle size={48} className="mx-auto mb-4 opacity-20" /><p>No comments on this project yet.</p></div>
                           ) : (
                               <div className="space-y-4">
-                                  {selectedProjectForComments.comments.slice().reverse().map((comment: any, idx: number) => (
+                                  {(selectedProjectForComments.comments || []).slice().reverse().map((comment: any, idx: number) => (
                                       <div key={idx} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group items-center">
                                           <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">{comment.author.charAt(0).toUpperCase()}</div>
                                           <div className="flex-1 min-w-0">
                                               <div className="flex justify-between items-start mb-1"><h4 className="font-bold text-gray-900 text-sm">{comment.author}</h4><span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleDateString()}</span></div>
                                               <p className="text-sm text-gray-600 leading-relaxed">{comment.text}</p>
                                           </div>
-                                          <button onClick={() => requestDeleteComment(comment._id || comment.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete Comment"><Trash2 size={18} /></button>
+                                          <button onClick={() => requestDeleteComment(comment._id || comment.id)} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete Comment"><Trash2 size={18} /></button>
                                       </div>
                                   ))}
                               </div>
@@ -943,15 +1460,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
       <ConfirmationModal isOpen={!!commentToDelete} title="Delete Comment?" message="Are you sure you want to delete this comment permanently?" confirmText="Delete" isDangerous={true} onConfirm={confirmDeleteComment} onCancel={() => setCommentToDelete(null)} />
       <ConfirmationModal isOpen={!!logoToDelete} title="Delete Logo?" message="Are you sure you want to remove this client logo?" confirmText="Remove" isDangerous={true} onConfirm={confirmDeleteLogo} onCancel={() => setLogoToDelete(null)} />
       <ConfirmationModal isOpen={!!messageToDelete} title="Delete Message?" message="Are you sure you want to delete this contact message?" confirmText="Delete" isDangerous={true} onConfirm={confirmDeleteMessage} onCancel={() => setMessageToDelete(null)} />
+      <ConfirmationModal isOpen={showBulkDeleteConfirm} title="Delete Selected Logos?" message={`Are you sure you want to delete ${selectedLogoIds.size} selected logos? This action cannot be undone.`} confirmText="Delete All" isDangerous={true} onConfirm={confirmBulkDeleteLogos} onCancel={() => setShowBulkDeleteConfirm(false)} />
     </div>
   );
 };
 
-const StatCard = ({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) => (
+const StatCard = ({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between">
         <div>
             <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            <h3 className="text-3xl font-bold text-gray-900">{value}</h3>
+            <h3 className="text-3xl font-bold text-gray-900"><AnimatedCounter value={value} /></h3>
         </div>
         <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
             {icon}
