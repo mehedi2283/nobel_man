@@ -84,7 +84,7 @@ function App() {
     }
   };
 
-    // Explicit refresh handler passed to AdminDashboard for polling
+  // Explicit refresh handler passed to AdminDashboard for polling
   const handleRefreshRequests = async () => {
       try {
           const projData = await projectService.getProjects();
@@ -94,6 +94,7 @@ function App() {
           console.debug("Background refresh failed");
       }
   };
+
   // Handle Profile Update from Dashboard
   const handleProfileUpdate = (updatedProfile: ProfileData) => {
     setProfileData(updatedProfile);

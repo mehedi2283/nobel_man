@@ -353,7 +353,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                     userMsg: currentPair.userMsg, 
                     modelMsg: log, 
                     createdAt: currentPair.userMsg.createdAt 
-                });
+                 });
                 currentPair = null;
             } else {
                 // Orphaned model message (rare, but handle it)
@@ -990,17 +990,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                                                                 {item.email ? (
                                                                     // --- Contact Form Message Render ---
                                                                     <div className="p-5 rounded-2xl border hover:shadow-md transition-all relative group bg-blue-50/30 border-blue-100">
-                                                                        <div className="flex justify-between items-start mb-3">
-                                                                            <div className="flex items-center gap-3">
-                                                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><Mail size={20} /></div>
-                                                                                <div><h3 className="font-bold text-gray-900">{item.name}</h3><a href={`mailto:${item.email}`} className="text-xs text-blue-600 hover:underline">{item.email}</a></div>
+                                                                        {/* Mobile Absolute Delete Button - Moved to outer container for clearer positioning */}
+                                                                        <button 
+                                                                            onClick={(e) => { e.stopPropagation(); setMessageToDelete(item._id || item.id); }} 
+                                                                            className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 active:bg-red-50 rounded-full transition-all z-10"
+                                                                        >
+                                                                            <Trash2 size={18} />
+                                                                        </button>
+
+                                                                        {/* Header Row - Added pr-12 to push timestamp away from absolute button */}
+                                                                        <div className="flex justify-between items-start mb-3 pr-12 md:pr-0 relative">
+                                                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><Mail size={20} /></div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <h3 className="font-bold text-gray-900 truncate pr-2">{item.name}</h3>
+                                                                                    <a href={`mailto:${item.email}`} className="text-xs text-blue-600 hover:underline truncate block">{item.email}</a>
+                                                                                </div>
                                                                             </div>
-                                                                            <div className="flex items-center gap-4">
-                                                                                <span className="text-xs text-gray-400 font-mono">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(item._id || item.id); }} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all -mr-2" title="Delete Message"><Trash2 size={18} /></button>
+                                                                            <div className="flex items-center gap-4 shrink-0">
+                                                                                <span className="text-xs text-gray-400 font-mono whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                                {/* Desktop Delete Button (Hidden on Mobile) */}
+                                                                                <button onClick={(e) => { e.stopPropagation(); setMessageToDelete(item._id || item.id); }} className="hidden md:block p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all -mr-2" title="Delete Message"><Trash2 size={18} /></button>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="pl-13 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.message}</div>
+                                                                        <div className="pl-0 md:pl-13 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{item.message}</div>
                                                                     </div>
                                                                 ) : (
                                                                     // --- Chat Conversation Pair Render ---
