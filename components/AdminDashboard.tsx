@@ -975,33 +975,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                         <motion.div key="inbox" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-4xl mx-auto flex flex-col min-h-[600px]">
                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">Inbox<span className="text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{processedInboxData.length} items</span></h2>
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                    <div className="bg-gray-100 p-1 rounded-2xl flex items-center relative gap-1"><button onClick={() => setInboxTab('contact')} className={`relative flex-1 px-8 py-2 text-sm font-bold transition-colors z-10 rounded-xl whitespace-nowrap min-w-[120px] flex items-center justify-center gap-2 ${inboxTab === 'contact' ? 'text-black' : 'text-gray-500'}`}>Contact Form{unreadMessagesCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full shrink-0"></span>}{inboxTab === 'contact' && (<motion.div layoutId="inbox-tab" className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10 border border-black/5" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />)}</button><button onClick={() => setInboxTab('chat')} className={`relative flex-1 px-8 py-2 text-sm font-bold transition-colors z-10 rounded-xl whitespace-nowrap min-w-[120px] flex items-center justify-center gap-2 ${inboxTab === 'chat' ? 'text-black' : 'text-gray-500'}`}>Chatbot{unreadChatLogsCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full shrink-0"></span>}{inboxTab === 'chat' && (<motion.div layoutId="inbox-tab" className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10 border border-black/5" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />)}</button></div>
-                                    <div className="relative flex items-center gap-2">
-                                        <AnimatePresence>
+                                {/* Controls Group with Layout Animation */}
+                                <motion.div layout className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                    {/* Tabs Container */}
+                                    <motion.div layout className="bg-gray-100 p-1 rounded-2xl flex items-center relative gap-1">
+                                        <button onClick={() => setInboxTab('contact')} className={`relative flex-1 px-8 py-2 text-sm font-bold transition-colors z-10 rounded-xl whitespace-nowrap min-w-[120px] flex items-center justify-center gap-2 ${inboxTab === 'contact' ? 'text-black' : 'text-gray-500'}`}>Contact Form{unreadMessagesCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full shrink-0"></span>}{inboxTab === 'contact' && (<motion.div layoutId="inbox-tab" className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10 border border-black/5" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />)}</button>
+                                        <button onClick={() => setInboxTab('chat')} className={`relative flex-1 px-8 py-2 text-sm font-bold transition-colors z-10 rounded-xl whitespace-nowrap min-w-[120px] flex items-center justify-center gap-2 ${inboxTab === 'chat' ? 'text-black' : 'text-gray-500'}`}>Chatbot{unreadChatLogsCount > 0 && <span className="w-2 h-2 bg-red-500 rounded-full shrink-0"></span>}{inboxTab === 'chat' && (<motion.div layoutId="inbox-tab" className="absolute inset-0 bg-white rounded-xl shadow-sm -z-10 border border-black/5" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />)}</button>
+                                    </motion.div>
+                                    
+                                    {/* Actions Container */}
+                                    <motion.div layout className="relative flex items-center gap-2">
+                                        <AnimatePresence mode="popLayout">
                                             {totalUnreadInbox > 0 && (
                                                 <motion.button 
-                                                    initial={{ opacity: 0, scale: 0.9, x: 20 }}
-                                                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                    exit={{ opacity: 0, scale: 0.9, x: 20 }}
+                                                    layout
+                                                    initial={{ opacity: 0, scale: 0.9, width: 0 }}
+                                                    animate={{ opacity: 1, scale: 1, width: "auto" }}
+                                                    exit={{ opacity: 0, scale: 0.9, width: 0 }}
                                                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                                                     onClick={handleMarkAllRead}
-                                                    className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-50 hover:text-black hover:border-gray-300 transition-colors text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-sm h-[40px]"
+                                                    className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-50 hover:text-black hover:border-gray-300 transition-colors text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-sm h-[40px] overflow-hidden"
                                                 >
-                                                    <CheckSquare size={16} />
-                                                    <span className="hidden sm:inline">Mark All Read</span>
-                                                    <span className="sm:hidden">Read All</span>
+                                                    <CheckSquare size={16} className="shrink-0" />
+                                                    <span className="hidden sm:inline whitespace-nowrap">Mark All Read</span>
+                                                    <span className="sm:hidden whitespace-nowrap">Read All</span>
                                                 </motion.button>
                                             )}
                                         </AnimatePresence>
-                                        <button 
+                                        <motion.button 
+                                            layout
                                             className={`relative cursor-pointer border rounded-2xl px-5 py-2 flex items-center gap-3 transition-all h-[40px] ${dateFilter ? 'bg-black text-white border-black' : 'bg-white border-gray-200 hover:border-gray-400 text-gray-600'}`} 
                                             onClick={() => setShowDatePicker(!showDatePicker)}
                                         >
                                             <Filter size={14} className={dateFilter ? "text-white" : "text-gray-400"} />
-                                            <span className="text-sm font-medium">{dateFilter ? new Date(dateFilter).toLocaleDateString() : 'Filter by Date'}</span>
+                                            <span className="text-sm font-medium whitespace-nowrap">{dateFilter ? new Date(dateFilter).toLocaleDateString() : 'Filter by Date'}</span>
                                             {dateFilter && (<span onClick={(e) => { e.stopPropagation(); setDateFilter(''); }} className="ml-2 w-5 h-5 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"><X size={12} /></span>)}
-                                        </button>
+                                        </motion.button>
                                         
                                         <AnimatePresence>
                                             {showDatePicker && (
@@ -1065,8 +1074,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ projects, onSaveProject
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
-                                    </div>
-                                </div>
+                                    </motion.div>
+                                </motion.div>
                            </div>
                            <div className="flex-1">
                                 {Object.keys(groupedInbox).length === 0 ? (<div className="text-center py-20 text-gray-400 flex flex-col items-center"><Mail size={64} className="mb-4 opacity-10" /><p>No messages found {dateFilter ? 'for this date' : 'in inbox'}.</p></div>) : (<AnimatePresence mode="wait"><motion.div key={`${inboxTab}-${inboxPage}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="space-y-8">{Object.entries(groupedInbox).map(([date, items]) => (<div key={date}><div className="flex items-center gap-4 mb-4"><div className="h-[1px] bg-gray-200 flex-1"></div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400"><Calendar size={14} /> {date}</div><div className="h-[1px] bg-gray-200 flex-1"></div></div><div className="space-y-4">{(items as any[]).map((item: any, idx: number) => (<div key={`${item.id}-${idx}`}>{item.email ? (<div onClick={() => handleMarkMessageRead(item)} className={`p-5 rounded-2xl border hover:shadow-md transition-all relative group cursor-pointer ${item.read ? 'bg-white border-gray-200' : 'bg-blue-50/50 border-blue-200 shadow-sm'}`}><button onClick={(e) => { e.stopPropagation(); setMessageToDelete(item._id || item.id); }} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 active:bg-red-50 rounded-full transition-all z-10"><Trash2 size={18} /></button><div className="flex justify-between items-start mb-3 pr-12 md:pr-0 relative"><div className="flex items-center gap-3 overflow-hidden"><div className={`w-10 h-10 rounded-full flex items-center justify-center text-blue-600 shrink-0 ${item.read ? 'bg-gray-100 text-gray-500' : 'bg-blue-100'}`}><Mail size={20} /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className={`font-bold truncate pr-2 ${item.read ? 'text-gray-700' : 'text-black'}`}>{item.name}</h3>{!item.read && <span className="w-2 h-2 rounded-full bg-red-500"></span>}</div>
