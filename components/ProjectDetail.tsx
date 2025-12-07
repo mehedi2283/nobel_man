@@ -478,50 +478,61 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project: initialProject, 
                         <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">Community Feedback</h2>
                     </div>
                     
-                    {/* Modern Input Form - Reduced margin on mobile */}
-                    <div className="relative mb-12 md:mb-20">
-                        <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-white rounded-3xl transform -rotate-1 scale-[1.02]" />
-                        <div className="relative bg-white/50 backdrop-blur-sm border border-gray-100 rounded-2xl p-8 shadow-sm">
-                            <form onSubmit={handleCommentSubmit} className="space-y-8">
-                                <div className="group">
-                                    <label className="block text-[10px] font-bold tracking-widest text-gray-400 mb-2 group-focus-within:text-black transition-colors uppercase">Your Name</label>
+                    {/* Modern Sharp Form */}
+                    <div className="w-full max-w-3xl mx-auto mb-20">
+                        <form onSubmit={handleCommentSubmit} className="bg-white border border-gray-200 p-8 md:p-12 relative group/form">
+                            
+                            {/* Hover Effect Border */}
+                            <div className="absolute inset-0 border border-black scale-[0.98] opacity-0 group-hover/form:scale-100 group-hover/form:opacity-100 transition-all duration-500 pointer-events-none" />
+
+                            <div className="relative z-10 space-y-12">
+                                
+                                <div className="relative z-0 w-full group">
                                     <input 
                                         type="text" 
                                         value={newCommentAuthor}
                                         onChange={(e) => setNewCommentAuthor(e.target.value)}
-                                        className="w-full text-lg font-medium border-b border-gray-200 py-2 focus:outline-none focus:border-black transition-colors bg-transparent placeholder-gray-300"
-                                        placeholder="Enter your name"
+                                        className="block py-4 px-0 w-full text-xl text-gray-900 bg-transparent border-0 border-b border-gray-200 appearance-none focus:outline-none focus:ring-0 focus:border-black peer rounded-none transition-colors" 
+                                        placeholder=" " 
                                     />
+                                    <label className="peer-focus:font-medium absolute text-sm text-gray-500 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 peer-focus:text-black peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 uppercase tracking-widest">
+                                        Your Name
+                                    </label>
                                 </div>
-                                
-                                <div className="group relative">
-                                    <label className="block text-[10px] font-bold tracking-widest text-gray-400 mb-2 group-focus-within:text-black transition-colors uppercase">Your Thoughts</label>
+
+                                <div className="relative z-0 w-full group">
                                     <textarea 
                                         value={newCommentText}
                                         onChange={(e) => setNewCommentText(e.target.value)}
-                                        rows={2}
-                                        className="w-full text-lg font-medium border-b border-gray-200 py-2 focus:outline-none focus:border-black transition-colors bg-transparent resize-none placeholder-gray-300 pr-48 min-h-[60px]"
-                                        placeholder="What do you think about this project?"
+                                        rows={1}
+                                        className="block py-4 px-0 w-full text-xl text-gray-900 bg-transparent border-0 border-b border-gray-200 appearance-none focus:outline-none focus:ring-0 focus:border-black peer rounded-none resize-none min-h-[60px] transition-colors" 
+                                        placeholder=" " 
                                     />
-                                    
-                                    {/* Animated Submit Button - Pill Shape */}
+                                    <label className="peer-focus:font-medium absolute text-sm text-gray-500 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 peer-focus:text-black peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 uppercase tracking-widest">
+                                        Your Thoughts
+                                    </label>
+                                </div>
+
+                                <div className="flex justify-end pt-4">
                                     <button 
                                         type="submit" 
                                         disabled={submitStatus === 'loading' || !newCommentAuthor || !newCommentText}
-                                        className="group/btn absolute right-0 bottom-2 h-12 px-8 bg-black text-white rounded-full overflow-hidden shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all z-10"
+                                        className="group/btn relative px-10 py-4 bg-black text-white overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
                                     >
-                                        {/* Fill Effect */}
-                                        <div className="absolute inset-0 bg-white translate-y-full group-hover/btn:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.86,0,0.07,1)]" />
-                                        
-                                        {/* Content */}
-                                        <div className="relative z-10 h-full flex items-center gap-3 group-hover/btn:text-black transition-colors duration-300">
-                                            <span className="font-bold text-xs uppercase tracking-widest">Post Comment</span>
-                                            {submitStatus === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                        <div className="absolute inset-0 bg-gray-800 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out" />
+                                        <div className="relative flex items-center gap-4">
+                                            <span className="text-xs font-bold uppercase tracking-[0.2em]">Post Comment</span>
+                                            {submitStatus === 'loading' ? (
+                                                <Loader2 size={16} className="animate-spin" />
+                                            ) : (
+                                                <Send size={16} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform duration-300" />
+                                            )}
                                         </div>
                                     </button>
                                 </div>
-                            </form>
-                        </div>
+
+                            </div>
+                        </form>
                     </div>
 
                     {/* Testimonial Style Slider */}
