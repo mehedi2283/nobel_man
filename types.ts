@@ -35,6 +35,7 @@ export interface Project {
   gallery?: string[];
   likes?: number;
   comments?: Comment[];
+  order?: number; 
 }
 
 export interface ClientLogo {
@@ -65,6 +66,7 @@ export interface ProfileData {
   socialInstagram: string;
   email: string;
   copyrightYear: string;
+  showTreatModal?: boolean;
 }
 
 export interface ContactMessage {

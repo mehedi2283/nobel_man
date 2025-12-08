@@ -16,6 +16,7 @@ import Preloader from './components/Preloader';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import ConfirmationModal from './components/ConfirmationModal';
+import TreatModal from './components/TreatModal';
 import { Project, ProfileData } from './types';
 import { INITIAL_PROJECTS, DEFAULT_PROFILE_DATA } from './constants';
 import { projectService } from './services/projectService';
@@ -112,6 +113,12 @@ function App() {
       try {
           const projData = await projectService.getProjects();
           setProjects(projData);
+
+              // Refresh profile data too to keep toggle synced if updated elsewhere
+          const profData = await projectService.getProfile();
+          if (profData && profData.name) {
+              setProfileData(prev => ({ ...prev, ...profData }));
+          }
           // We could also refresh profile, but less critical
       } catch (error) {
           console.debug("Background refresh failed");
@@ -284,6 +291,12 @@ function App() {
   return (
     <div className="relative w-full min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-black selection:text-white">
       <CustomCursor />
+
+
+       {/* Treat Modal - Visible only on Home View (not admin) */}
+      {view === 'home' && !selectedProject && (
+        <TreatModal isEnabled={!!profileData.showTreatModal} />
+      )}
       
       <AnimatePresence mode="wait">
         {isLoading && <Preloader onComplete={() => setIsLoading(false)} />}

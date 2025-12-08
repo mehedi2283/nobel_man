@@ -32,8 +32,9 @@ export const DEFAULT_PROFILE_DATA: ProfileData = {
   socialBehance: "https://www.behance.net/shafiulnob",
   socialInstagram: "https://www.instagram.com/shafiul_",
   email: "shafiulislamnobel1@gmail.com",
-  copyrightYear: "2024"
-};
+  copyrightYear: "2024",
+  showTreatModal: false
+};;
 
 export const AI_SYSTEM_INSTRUCTION = `
 You are an AI assistant for a portfolio website of a UX/UI Designer named "${PORTFOLIO_DATA.name}".
